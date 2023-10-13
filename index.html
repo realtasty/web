@@ -1,0 +1,237 @@
+<html>
+<head>
+    <title>Accuracy Points Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            background-color: #222;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        #calculator-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+        }
+
+        #container {
+            background-color: #222;
+            border: 2px solid #00bfff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px #00bfff;
+            max-height: 80%;
+            width: 70%;
+            max-width: 400px;
+        }
+
+        h1 {
+            color: #00bfff;
+            text-align: center;
+        }
+
+        label, input {
+            display: block;
+            margin: 10px 0;
+        }
+
+        button {
+            background-color: #00bfff;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            display: block;
+            margin: 10px auto;
+        }
+
+        button:hover {
+            background-color: #0055a0;
+        }
+
+        p#result {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #footer {
+            text-align: center;
+            background-color: #222;
+            padding: 10px 0;
+            width: 100%;
+        }
+
+        #footer a {
+            color: #5e5e5e;
+            text-decoration: none;
+        }
+
+        #image {
+            max-width: 100%;
+            height: auto;
+            position: relative;
+			scale: 50%;
+            top: 250px;
+        }
+
+        @media screen and (max-width: 768px) {
+            #container {
+                width: 90%;
+            }
+
+            #image {
+                top: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <img id="image" src="https://www.beatleader.xyz/assets/accsaber-logo.png" alt="accsaber logo">
+
+    <div id="calculator-container">
+        <div id="container">
+            <h1>AccSaber Calculator</h1>
+            <p>Enter accuracy (e.g., 98.64) and complexity rating:</p>
+
+            <form id="accuracyForm">
+                <label for="accuracyInput">Accuracy:</label>
+                <input type="text" id="accuracyInput" placeholder="e.g., 98.32%" required>
+
+                <label for "complexityRatingInput">Complexity:</label>
+                <input type="number" id="complexityRatingInput" step="0.01" required>
+
+                <button type="button" onclick="calculateAccuracyPoints()">Calculate</button>
+            </form>
+
+            <p id="result"></p>
+        </div>
+    </div>
+
+    <div id="footer">
+        <a href="https://beatsaver.com/playlists/184852" target="_blank">true acc maps by realtasty</a>
+    </div>
+</body>
+</html>
+
+    <script>
+        function calculateAccuracyPoints() {
+            const accuracyInput = document.getElementById("accuracyInput").value;
+            const complexityRatingInput = parseFloat(document.getElementById("complexityRatingInput").value);
+
+            const accuracy = parsePercentage(accuracyInput);
+
+            if (accuracy < 0) {
+                document.getElementById("result").innerText = "Enter a valid percentage.";
+            } else {
+                const ap = calculateAP(accuracy, complexityRatingInput);
+                document.getElementById("result").innerText = "AP: " + ap.toFixed(2);
+            }
+        }
+
+        function parsePercentage(percentage) {
+            try {
+                const value = parseFloat(percentage.replace("%", ""));
+                return value / 100;
+            } catch (error) {
+                return -1;
+            }
+        }
+
+        function calculateAP(accuracy, complexityRating) {
+            if (accuracy < 0 || accuracy > 1) return 0.0;
+            if (complexityRating === "" || complexityRating <= 0) return 0;
+            
+            const curvePoints = [
+                [0, 0],
+                [0.9409324581850277, 0.22864617746193472],
+                [0.9421364984358537, 0.2344589535514457],
+                [0.943340858876901, 0.24028320272237846],
+                [0.9445528451823, 0.24615905401143912],
+                [0.9457521950057954, 0.2519929536323373],
+                [0.9469652757511278, 0.25791818908545416],
+                [0.9481613689691947, 0.26378971348304325],
+                [0.9493682127874609, 0.26974882033448855],
+                [0.9505744372202971, 0.27574542941084734],
+                [0.9517783524884541, 0.2817769019690621],
+                [0.9529892330175649, 0.287896269816159],
+                [0.9541947185853665, 0.2940478274623703],
+                [0.9554044516127758, 0.30028781869718807],
+                [0.9566054381494079, 0.30655637705110717],
+                [0.957807698698665, 0.31291317977345784],
+                [0.9590221672423604, 0.3194262585871035],
+                [0.9602231628864696, 0.32596720585696376],
+                [0.961433998563471, 0.3326729095043305],
+                [0.9626279572859802, 0.339405506964074],
+                [0.963842342827163, 0.3463882776436415],
+                [0.965050103040447, 0.3534815900715788],
+                [0.96624960935703, 0.36068799949007235],
+                [0.9674529869368587, 0.3680959084197356],
+                [0.9686591348667645, 0.3757183982279203],
+                [0.9698668993297, 0.38356990598376894],
+                [0.9710750806787853, 0.39166641973515987],
+                [0.9722824425660789, 0.4000257103100814],
+                [0.9734877233230004, 0.408667608162045],
+                [0.9746896497445529, 0.41761433619185573],
+                [0.9759017934808459, 0.42700834856603836],
+                [0.977108280868104, 0.43677295486970896],
+                [0.9783078742661878, 0.44694216753773164],
+                [0.9795145289674262, 0.4576932612610576],
+                [0.9807121922419519, 0.46894998821359746],
+                [0.981930401543003, 0.48108071091217086],
+                [0.9831227248036967, 0.4937134311802671],
+                [0.9843344315883069, 0.5074369975183908],
+                [0.9855345565106794, 0.5220472890164811],
+                [0.9867538435462135, 0.5381018792987169],
+                [0.9879462160499057, 0.5551918317559756],
+                [0.989158767583543, 0.5742496799950565],
+                [0.9903616429313051, 0.5951727896238259],
+                [0.9915723216173138, 0.6187204908473445],
+                [0.9927779343719173, 0.6452713618738384],
+                [0.9939826353978779, 0.6757582832177143],
+                [0.9951928260723995, 0.7116318568448161],
+                [0.99638391362715, 0.7539893920553304],
+                [0.9975978174482817, 0.8078649708462118],
+                [0.9988016676122579, 0.8810362590039038],
+                [0.9997988680153226, 1],
+                [1, 1]
+            ];
+
+            let startPost, endPost;
+            for (let i = 0; i < curvePoints.length; i++) {
+                if (curvePoints[i][0] <= accuracy) {
+                    startPost = curvePoints[i];
+                }
+                if (curvePoints[i][0] >= accuracy) {
+                    endPost = curvePoints[i];
+                    break;
+                }
+            }
+
+            if (startPost === undefined) {
+                startPost = curvePoints[0];
+            }
+            if (endPost === undefined) {
+                endPost = curvePoints[curvePoints.length - 1];
+            }
+
+            const accuracyRange = endPost[0] - startPost[0];
+            const accuracyTraveled = accuracy - startPost[0];
+            const percentTraveled = accuracyTraveled / accuracyRange;
+
+            const startPostContribution = (1 - percentTraveled) * startPost[1];
+            const endPostContribution = percentTraveled * endPost[1];
+
+            return (startPostContribution + endPostContribution) * (complexityRating + 18) * 61;
+        }
+    </script>
+</body>
+</html>
