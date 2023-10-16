@@ -1,0 +1,908 @@
+<html lang="en">
+   <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>AP Puller</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+         body {
+         background-color: #222;
+         color: #fff;
+         font-family: Arial, sans-serif;
+         display: flex;
+         flex-direction: column;
+         justify-content: space-between;
+         align-items: center;
+         min-height: 100vh;
+         margin: 0;
+         }
+         #calculator-container {
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         flex: 1;
+         }
+         #container {
+         background-color: #222;
+         border: 2px solid #00bfff;
+         border-radius: 10px;
+         padding: 20px;
+         box-shadow: 0 0 10px #00bfff;
+         max-height: 80%;
+         width: 70%;
+         max-width: 400px;
+         }
+         h1 {
+         color: #00bfff;
+         text-align: center;
+         }
+         label, input {
+         display: block;
+         margin: 10px 0;
+         }
+         button {
+         background-color: #00bfff;
+         color: #fff;
+         padding: 10px 20px;
+         border: none;
+         cursor: pointer;
+         border-radius: 5px;
+         display: block;
+         margin: 10px auto;
+         }
+         button:hover {
+         background-color: #0055a0;
+         }
+         p#result {
+         margin: 20px 0;
+         text-align: center;
+         }
+         #footer {
+         text-align: center;
+         background-color: #222;
+         padding: 10px 0;
+         width: 100%;
+         }
+         #footer a {
+         color: #5e5e5e;
+         text-decoration: none;
+         }
+         }
+      </style>
+   </head>
+   <body>
+      <div id="calculator-container">
+         <div id="container">
+            <h1>AccSaber Scores</h1>
+            <label for="player_id">BeatLeader ID:</label>
+            <input type="text" id="player_id" placeholder="76561198186151129">
+            <button onclick="fetch_and_calculate_scores()">Calculate Scores</button>
+            <h2>Recent AP:</h2>
+            <div id="map_accuracy_results"></div>
+         </div>
+      </div>
+      <script>
+         let recent_scores = [];
+         
+         function fetch_and_calculate_scores() {
+             const player_id = document.getElementById("player_id").value;
+         
+             const api_url = `http://15.204.174.23:3000/api/scores/${player_id}`;
+         
+             fetch(api_url)
+                 .then(response => response.json())
+                 .then(data => {
+                     if (data && data.data) {
+                         recent_scores = data.data;
+         
+                         calculate_and_display_accuracy_points();
+                     } else {
+                         display_error("No scores found.");
+                     }
+                 })
+                 .catch(error => {
+                     console.error("Error fetching scores: ", error);
+                     display_error("Error fetching scores");
+                 });
+         }
+         
+         function display_error(message) {
+             const accuracy_results = document.getElementById("map_accuracy_results");
+             accuracy_results.innerHTML = `<p>${message}</p>`;
+         }
+         
+         function calculate_and_display_accuracy_points() {
+         if (!recent_scores || recent_scores.length === 0) {
+         return;
+         }
+         
+         const accuracy_results = document.getElementById("map_accuracy_results");
+         
+         recent_scores.forEach(score => {
+         if (score.leaderboard && score.leaderboard.song) {
+            const song = score.leaderboard.song;
+            const accuracy = (score.accuracy * 100).toFixed(2) + "%";
+            const song_hash = song.hash.toUpperCase();
+         
+            const difficulty_name = score.leaderboard.difficulty.difficulty_name;
+         
+            if (song_data[song_hash] && difficulty_name) {
+                const difficulties = song_data[song_hash];
+                if (difficulties[difficulty_name]) {
+                    const difficulty_rating = difficulties[difficulty_name];
+                    const ap = calculate_ap(score.accuracy, difficulty_rating);
+                    if (!isNaN(ap)) {
+                        console.log(`Processed: Map - ${song.name}, Difficulty - ${difficulty_name}, Accuracy - ${accuracy}, AP - ${ap.toFixed(2)}`);
+                        accuracy_results.innerHTML += `<p>Map: ${song.name}, Difficulty: ${difficulty_name}, Accuracy: ${accuracy}, AP: ${ap.toFixed(2)}</p>`;
+                    } else {
+                        console.log(`AP Calculation Error for Map - ${song.name}`);
+                    }
+                }
+            }
+         } else {
+            console.log("Score missing required data");
+         }
+         });
+         }
+         
+         function parse_percentage(percentage) {
+             try {
+                 const value = parseFloat(percentage.replace("%", ""));
+                 return value / 100;
+             } catch (error) {
+                 return -1;
+             }
+         }
+         
+         function calculate_ap(accuracy, complexity_rating) {
+             if (accuracy < 0 || accuracy > 1) return 0.0;
+             if (complexity_rating === "" || complexity_rating <= 0) return 0;
+             
+             const curve_points = [
+                 [0, 0],
+                 [0.9409324581850277, 0.22864617746193472],
+                 [0.9421364984358537, 0.2344589535514457],
+                 [0.943340858876901, 0.24028320272237846],
+                 [0.9445528451823, 0.24615905401143912],
+                 [0.9457521950057954, 0.2519929536323373],
+                 [0.9469652757511278, 0.25791818908545416],
+                 [0.9481613689691947, 0.26378971348304325],
+                 [0.9493682127874609, 0.26974882033448855],
+                 [0.9505744372202971, 0.27574542941084734],
+                 [0.9517783524884541, 0.2817769019690621],
+                 [0.9529892330175649, 0.287896269816159],
+                 [0.9541947185853665, 0.2940478274623703],
+                 [0.9554044516127758, 0.30028781869718807],
+                 [0.9566054381494079, 0.30655637705110717],
+                 [0.957807698698665, 0.31291317977345784],
+                 [0.9590221672423604, 0.3194262585871035],
+                 [0.9602231628864696, 0.32596720585696376],
+                 [0.961433998563471, 0.3326729095043305],
+                 [0.9626279572859802, 0.339405506964074],
+                 [0.963842342827163, 0.3463882776436415],
+                 [0.965050103040447, 0.3534815900715788],
+                 [0.96624960935703, 0.36068799949007235],
+                 [0.9674529869368587, 0.3680959084197356],
+                 [0.9686591348667645, 0.3757183982279203],
+                 [0.9698668993297, 0.38356990598376894],
+                 [0.9710750806787853, 0.39166641973515987],
+                 [0.9722824425660789, 0.4000257103100814],
+                 [0.9734877233230004, 0.408667608162045],
+                 [0.9746896497445529, 0.41761433619185573],
+                 [0.9759017934808459, 0.42700834856603836],
+                 [0.977108280868104, 0.43677295486970896],
+                 [0.9783078742661878, 0.44694216753773164],
+                 [0.9795145289674262, 0.4576932612610576],
+                 [0.9807121922419519, 0.46894998821359746],
+                 [0.981930401543003, 0.48108071091217086],
+                 [0.9831227248036967, 0.4937134311802671],
+                 [0.9843344315883069, 0.5074369975183908],
+                 [0.9855345565106794, 0.5220472890164811],
+                 [0.9867538435462135, 0.5381018792987169],
+                 [0.9879462160499057, 0.5551918317559756],
+                 [0.989158767583543, 0.5742496799950565],
+                 [0.9903616429313051, 0.5951727896238259],
+                 [0.9915723216173138, 0.6187204908473445],
+                 [0.9927779343719173, 0.6452713618738384],
+                 [0.9939826353978779, 0.6757582832177143],
+                 [0.9951928260723995, 0.7116318568448161],
+                 [0.99638391362715, 0.7539893920553304],
+                 [0.9975978174482817, 0.8078649708462118],
+                 [0.9988016676122579, 0.8810362590039038],
+                 [0.9997988680153226, 1],
+                 [1, 1]
+             ];
+         
+             let start_post, end_post;
+             for (let i = 0; i < curve_points.length; i++) {
+                 if (curve_points[i][0] <= accuracy) {
+                     start_post = curve_points[i];
+                 }
+                 if (curve_points[i][0] >= accuracy) {
+                     end_post = curve_points[i];
+                     break;
+                 }
+             }
+         
+             if (start_post === undefined) {
+                 start_post = curve_points[0];
+             }
+             if (end_post === undefined) {
+                 end_post = curve_points[curve_points.length - 1];
+             }
+         
+             const accuracy_range = end_post[0] - start_post[0];
+             const accuracy_traveled = accuracy - start_post[0];
+             const percent_traveled = accuracy_traveled / accuracy_range;
+         
+             const start_post_contribution = (1 - percent_traveled) * start_post[1];
+             const end_post_contribution = percent_traveled * end_post[1];
+         
+             return (start_post_contribution + end_post_contribution) * (complexity_rating + 18) * 61;
+         }
+         
+         
+const songData = {
+
+    // true acc
+	
+    "A8620B835DAE0C5AA7DEA47952C95583F46CD51C": {
+        Easy: 1.0, // cupid
+    },
+    "F614DAF314C446EB670379293C26CD419AABD83B": {
+        Easy: 4.35, // what you know
+    },
+	"E87AFD8B1F17B570238CDC292FB17507E2E2CF0E": {
+        Easy: 3.96, // my god
+    },
+	"7D7772547ED8BD1C147AE0D6BC066C9CBCA481EE": {
+        Easy: 3.4, // the longest wave
+    },
+	"07C106E98AA57D42E1A3C774E151B7EBECFD5037": {
+        Easy: 4.01, // the darkside
+    },
+	"E0F998F50EF3B1D184CB92DC0FFDD3BF59CB3145": {
+        Easy: 2.00, // madeleine
+    },
+	"F117297CCA326FC878E200AF8C42DEBA049C30CD": {
+        Easy: 3.59, // youre somebody else
+    },
+	"E131D90A4ACF4ACB54FD289BCB4D67ACA3BC141D": {
+        Easy: 3.5, // pump it
+    },
+	"16DC79A053E9945E5FB0844153CF82E60702D0F8": {
+        Easy: 3.8, // head in her heart
+    },
+	"69A632E13DECFC465E112B2E8A38183CE42E2AA9": {
+        Normal: 3.5, // bad dream
+    },
+	"E6D51CBD6DE87637C1E1864255D0FE50F29DD8C0": {
+        Easy: 3.25, // a deriva
+    },
+	"97D8B24A2A3C3C95CB70CA1F57B5FFC73F7D8999": {
+        Easy: 2.88, // hourglass
+    },
+	"3F3B1362DDF3DD33FBD7985BDC82858322254A5E": {
+        Easy: 3.8, // blind
+    },
+	"FC229AFCAD6CA54DDD3AAB7C3DDE4FCD3FC6E301": {
+        Easy: 0.65, // everything everything
+    },
+	"0C271C9B55E0AB38C13C3D96487B14258E1515A8": {
+        Easy: 4.27, // sharks
+    },
+	"E200F38322473F9A777D38432D002338928B2598": {
+        Easy: 1.15, // as it was
+    },
+	"03C454920B82A636749144F7AD99A52BC74709B5": {
+        Easy: 3.14, // maison
+    },
+	"96DF0A1B8E2C80D52EA6A77005556A687BD027BB": {
+        Easy: 2.0, // burn
+    },
+	"A2CA30D47DC25AF354CB30B32607EFBD1328435A": {
+        Easy: 4.05, // thunder
+    },
+	"0F0A30BB4139247EB7877EAB69F78FE3B047738C": {
+        Easy: 4.3, // all my love
+    },
+	"6A4FB94725B9D887C1E0601AC4FA17218A48AD21": {
+        Easy: 4.5, // nothing for free
+    },
+	"E4651B6017F96946B55A3D1E2E2D515DB606BCDE": {
+        Easy: 3.8, // back home
+    },
+	"84BCFF4756AC66BF1746824B0B221EB1E6A4AFF2": {
+        Easy: 4.9, // ph
+    },
+	"8E03ADD800CC186CE819B739FB775F972597B5DA": {
+        Easy: 1.7, // kolnidur
+    },
+	"D5C1AB8CAB47E84BC7D7239411C97B3F346114AE": {
+        Normal: 3.4, // encore
+    },
+	"B4B79DAEE82AE1C75BFE64572AB9FA9D442DBA2F": {
+        Easy: 4.9, // Goodbye Declaration
+    },
+	"0C613E9EE92BFAB6D055594178CADB80FBC9A254": {
+        Easy: 4.4, //  Cinderella
+    },
+	"27D33AC3F3C91DB8DA18AC5F26DBB6A8D86DB12F": {
+        Easy: 2.7, // Queendom
+    },
+	"0188B5CBE1236A08D137E866B9E177F15EAC560B": {
+        Easy: 5.2, // Eye
+    },
+	"943E3A95D8FDD12180D7AA8348F9687D7D34C431": {
+        Easy: 4.9, // Stay
+    },
+	"060B7725FE62F0DF7D4EE8A338B9FF7F733749A6": {
+        Easy: 3.9, // The Vampire
+    },
+	"E2156ED2CEFF93A66621742F1928873613157E59": {
+        Easy: 4.9, // 40mp
+    },
+	"782FE880112189EDFD583133C2CD6028570178B8": {
+        Normal: 4.7, // simulation
+    },
+	"878F3EBC44FB669603F8AA112A17F56B932E1D5B": {
+        Easy: 3.3, // Shockwave
+    },
+	"1DB37E58609AD297650581C7D8B456FCF82DA119": {
+        Easy: 4.4, // all we got
+    },
+	"AAFC6E82A5E39838D3ECB0897F2B9A4D37428B7B": {
+        Easy: 3.9, // perfume
+    },
+	"09849096E076AF04937F18F37DDC8EF474A766B3": {
+        Easy: 3.3, // plans
+    },
+	"D4A16A366D1199A81C78FA8729F0710AB07A7D44": {
+        Normal: 4.9, // wat pa la
+    },
+	"BD1E8B2EE9B1095F0EEBE670F0F79136C39B5EC7": {
+        Easy: 4.9, // pause
+    },
+	"1CC0CCB40969D5BDF1631930CB3119F4F89C3722": {
+        Easy: 3.9, // yoru wa honoka
+    },
+	"0D191CD2DFE9404E4F58B5520BBC9B7B9CAFA8C7": {
+        Easy: 4.9, // king
+    },
+	"8FA5281A5DEDE13CABE5843BCE9517007AD8B04F": {
+        Easy: 3.1, // 2u
+    },
+	"561E0971470069A49AA925DF7484282019E59C40": {
+        Easy: 4.0, // 24k magic
+    },
+	"548CC2F2666D123CD9103E62523B6C37C4CB04F5": {
+        Easy: 4.5, // finesse
+    },
+	"7205386FAE254C424B4F6C48DA411052CA0964F5": {
+        Easy: 4.9, // step
+    },
+	"D85A604A4C90B07C8F32E079CECDD76B0E7F8984": {
+        Easy: 4.0, // ashes
+    },
+	"D67DEEC3D7B929E6786E376CB80186E31C378D69": {
+        Easy: 5.5, // sleigh ride
+    },
+	"AB34ADA173E4F88CE1770FA8369890EFA2CD6D01": {
+        Normal: 4.8, // the rest if life
+    },
+	"4E5712D5C2C2AA2A1FDDE9ED6DF1616F1AAAAFD6": {
+        Easy: 1.9, // lose it
+    },
+	"22A793A03FB7D6E0F7291082896D595A016AF39F": {
+        Easy: 3.9, // whos laughing now
+    },
+	"FE156971A5116B2D52F15AE77FDFB123AC9E549D": {
+        Easy: 3.9, // dharma
+    },
+	"3D0561C0E4B18AA7A5C240FA2AC0C2052318A8D2": {
+        Easy: 2.3, // wildcard
+    },
+	"BBABE0DA40CE8F54C666DB99F58F8D03D5F7CEC7": {
+        Easy: 3.9, // song 3
+    },
+	"D7CB32F23041DEC272DE3DA0AC141DD8F91478CA": {
+        Easy: 2.9, // shiawase
+    },
+	"C6B7136536EF5647374198769B3211B2B2E4EE17": {
+        Easy: 3.4, // super riser
+    },
+	"6612DFE7533EA5426ADFA378EEC4ED19E24233EB": {
+        Easy: 2.7, // hallelujah
+    },
+	"B5FF79432F4C54AC16C005094902FC20D6FAC074": {
+        Easy: 3.1, // the rain
+    },
+	"1B9278797FA6D85D0201D1A261101F8CB9AC7DDE": {
+        Easy: 3.9, // levels of concern
+    },
+	"12FFB213E09E866172AABA442843BB3116C07316": {
+        Easy: 0.8, // midnight moon
+    },
+	"B70AEEF2EE915CED48593422931E8BA2A1F4E973": {
+        Easy: 2.4, // crying for rain
+    },
+	
+	// tech acc
+	
+	"9956597E2E25345F7646B0EAAA52954BA8D60A6F": {
+        "Normal": 9.29, // YOASOBI - Idol
+    },
+    "344D246120F16BA93E2469DAE696851D75728C2D": {
+        "ExpertPlus": 12.11, // Conro - Kick It
+    },
+    "70321FED0CC5C30C0DEF50333CAC9B0C97B8042F": {
+        "Expert": 10.24, // Balduin & Wolfgang Lohr - Magic Man
+    },
+    "F91116B3C53F1B6DE2D2D631F01C8CB40E30A9E3": {
+        "ExpertPlus": 11.11, // Ellis - After Hours
+    },
+    "965916D9CF59F262ACB4BDD206369885E3E9B5C4": {
+        "Hard": 8.22, // Masha Ray - Eye Candy
+        "Expert": 10.17,
+    },
+    "034D7EEF90EE01F9AE78AC9CB3E78DFD34FD5D94": {
+        "Expert": 9.9, // Taylor Swift - 22
+    },
+    "1CAE07B3690493E0989E57F782890688D63EC152": {
+        "ExpertPlus": 9.7, // NOTD, Astrid S - I Don't Know Why
+    },
+    "92BBD3FE086EF9E0D3B05BBF3B4B0A3F94C35234": {
+        "Expert": 11.4, // Kurage-P - My R
+    },
+    "AB15A322EF3664A4AEF6E61F15395EE250323A8F": {
+        "Hard": 8.92, // The Chainsmokers - All We Know
+    },
+    "465F13F0472EA9ACD1B34E75C4D3DA76556AD5D1": {
+        "Normal": 8.29, // Kenshi Yonezu - KICK BACK
+    },
+    "53D63590F2D3E6148B1DB14D5C63ACDC411149E4": {
+        "Hard": 9.05, // PURPLE KISS - Nerdy
+    },
+    "524B8705E4BF57B971B96F4BFB5EACB4B42883BC": {
+        "Expert": 12.51, // Ellis - Feel That Way
+    },
+    "C616384BAE1292282930A379647CAC296960A7FD": {
+        "Expert": 9.7, // Arden Jones - mr. sunshine
+    },
+    "3DA135C11207F5F4F2DFE7B18A6416931F66936E": {
+        "Hard": 8.81, // Fitz and the Tantrums - Handclap
+    },
+    "2B47B5CA03FADA364FF8ABA4103EAB7B3C204A0C": {
+        "Expert": 9.88, // Rixton - Me And My Broken Heart
+    },
+    "1F4549DFE479F51E9573DBC7E348B217952F3133": {
+        "Hard": 9.4, // David Taylor - Love Like Tequila
+    },
+    "9EDB7FA076EC5493DF4EAC4B1C134A4F3C4C3EBF": {
+        "Hard": 9.07, // Getty - TELL U
+    },
+    "8DCFE49242E87D1D3EECABA2E55EA8ACBF39DB0B": {
+        "Normal": 8.34, // YOASOBI - Monster
+    },
+    "82099DBE5ED28973685F088DDEB884407AAF4765": {
+        "ExpertPlus": 8.84, // Ke$ha - TiK ToK
+    },
+    "A9E696B8F2314B1EC5A7D8D669A6B6F9E9579501": {
+        "ExpertPlus": 10.79, // Grant & Ellis - Dead Man Walking
+    },
+    "80559A7A4AC0F62F27DAF1C59DF67F305250ADFF": {
+        "Hard": 10.05, // Tsumiki - Phony
+    },
+    "C2E6C5793C1C3D3D6304458C3D414B76CC37630B": {
+        "ExpertPlus": 11.3, // Conro - Thrill of It
+    },
+    "0A0E4B804E083632716CE4756F5000049E87DA7C": {
+        "ExpertPlus": 11.93, // Joji - Mr. Hollywood
+    },
+    "7B8A05A5399951282FAFD8516764F921D64CC3C4": {
+        "Normal": 9.4, // Juggernaut. - Distorted Heavens
+    },
+    "B7F9116377C0ADDEAD9AAC285C3BAD63E8E303CE": {
+        "ExpertPlus": 11.76, // Conro - All Eyes On Me
+    },
+    "5D36831A4CCD9CB16AFEB42AB310CAE12C9D5A22": {
+        "Hard": 7.9, // Origami Angel - Doctor Whomst
+    },
+    "18EDD433DA1CCA636C750AF20A44B01B45B294C7": {
+        "Hard": 9.91, // Good Kid - Orbit
+    },
+    "4BDD28C4F2811DDA4945B2F9556DF5130931E0B3": {
+        "Expert": 9.9, // Taylor Swift - I Knew You Were Trouble
+    },
+    "125E40E1ACC4A3B6AC4C8B857BD1004F0B33BF52": {
+        "Hard": 10.3, // MAN WITH A MISSION - Database
+    },
+    "A0FF87D12263A7B43D4ACBF6CB1FDB5E312B2B30": {
+        "Normal": 10.6, // P*Light - Clip it Bro
+    },
+    "54D86FFAB0F0CECFE0F11F494301701918334977": {
+        "ExpertPlus": 11, // YOASOBI - Ano Yume wo Nazotte
+    },
+    "33466BFDA7CFDC57928D63E902023199200CC43D": {
+        "ExpertPlus": 10.7, // Alan Walker - Sing Me To Sleep
+    },
+    "97630887AA16EA4D311CE5171F0894EA3FA78625": {
+        "Normal": 9, // Kairiki Bear - Darling Dance
+    },
+    "84BCFF4756AC66BF1746824B0B221EB1E6A4AFF2": {
+        "Hard": 9.1, // SEVENTHLINKS - p.h.
+    },
+    "C6B80ADE344B636D2597CB36C6BC8F4110165778": {
+        "ExpertPlus": 10.3, // Saint Punk - Empty Bed
+    },
+    "B37FB4DBBEECE799A399A8759163F6FD3DE618CE": {
+        "Hard": 9.86, // More Plastic, M.A.S.K. - Lost in Time
+    },
+    "C1CB957445C5BD92A8B4FEF3A2F9B99A7F775C0F": {
+        "ExpertPlus": 11.1, // Ofelia K - Cinco
+    },
+    "3F27CFA28C6128C8424C8E602F0C8B52C6F91274": {
+        "Expert": 9.2, // Cidergirl - Cinderella
+    },
+    "AB4CDAF0B684B5811D0C5F0F079862CA03C09431": {
+        "Expert": 9.7, // WOODZ - Chaser
+    },
+    "83475886CE251C12F1C1755D15A2FE494776AE93": {
+        "Hard": 9.8, // succducc - me & u
+    },
+    "3E8A2B1ACB484AE7C04D847B0F1E71A8A8F89050": {
+        "ExpertPlus": 10.7, // glaive - poison
+    },
+    "0DD46BFA01ACB153EF5AE357FB4968C9ED8E4595": {
+        "Normal": 10.4, // Camellia - Nasty * Nasty * Spell
+    },
+    "1FEF6D7C8E4984831738E290F3CD1111B6C65710": {
+        "Hard": 9.4, // Amaranthe - Digital World
+    },
+    "C41349BA97079EAC8DC15A120956F766F83BDBB6": {
+        "Hard": 7.2, // Nameless - Aishite
+    },
+    "919C62FF2BAB5670EC8347ABEB0068EF420AA25C": {
+        "Expert": 9.5, // Kanaria - MIRA
+    },
+    "2AC7CB39558700FA31B203D617E94F4C7340EE7F": {
+        "ExpertPlus": 11.5, // The Chainsmokers & Coldplay - Something Just Like This
+    },
+    "0188B5CBE1236A08D137E866B9E177F15EAC560B": {
+        "Hard": 7.9, // Kanaria - EYE
+        "Expert": 10.3,
+    },
+    "5868546DD2A98E6F0BC288A83506EB766113A9EB": {
+        "Normal": 9, // Chester Young & STIMX - Forever
+    },
+    "83B3CCEDAFE29D6FD9BAB6F77EDD01A8AF920E14": {
+        "ExpertPlus": 9, // Oski - Bad
+    },
+    "8412F5B96209B69845BCBA87DCD4E8FB0FD6D24A": {
+        "Expert": 10.2, // Pixel Terror - Soda
+    },
+    "1CE20E57CCEA2637B152982D16B173B6664CF9A7": {
+        "Expert": 10.7, // MYTH & ROID - STYX HELIX
+    },
+    "25FE339505CF979D0B462EA764391EDF30A2F67B": {
+        "Hard": 9.5, // Yorushika - Matasaburo
+    },
+    "F0C9F2F4E3B85D2DC755576047489EA67E510803": {
+        "ExpertPlus": 10.3, // M2U - Unclear
+    },
+    "02B85D98CF71AA913723503466FA3DEDABD15EF0": {
+        "Hard": 9.5, // Fvrwvrd - Heartbreak
+    },
+    "D77B25882287CD6CDF4E6D784BBE607C3295F79A": {
+        "Hard": 10.3, // AronChupa, Little Sis Nora - Trombone
+    },
+    "8A765AC62F586EFFA7CF30CDD90B544D11F4A3B2": {
+        "Hard": 9.3, // Mafumafu - Venom
+    },
+    "6C017F69BD1FFDE6A69D6A1BC093E3C4AFF83E3B": {
+        "Hard": 8.1, // Hatsuki Yura - Saramandora no Odoriko
+    },
+	"0D191CD2DFE9404E4F58B5520BBC9B7B9CAFA8C7": {
+        "Expert": 9.5, // Ayunda Risu - KING
+    },
+    "ACBF9FF3733741789A37AFE3E6CF7C947E895148": {
+        "Normal": 9.8, // Kotone - Autonomy
+    },
+    "3654E2ED8A930CBE726C82ED5E0117F754E1BF30": {
+        "Expert": 11.2, // YOASOBI - RGB
+    },
+    "B36D9B7B3AC7B6D73477799BABD4500170AF5641": {
+        "Hard": 8.5, // K/DA - MORE
+    },
+    "B89521B8623A1DD56E3C56376E79CFB303D587C2": {
+        "Expert": 9.5, // Starset - Die For You
+    },
+    "B38151B3B6579B121D00E7616204899B544DE831": {
+        "Hard": 8.5, // Yorushika - Robber And Bouquet
+    },
+    "6FF24C5F5205C87EC3F0DA826139D01F2FC4EA05": {
+        "Normal": 8.6, // Nyarons - We are human beings
+    },
+    "3A7FCA27AE95AB1DC14103900A07324502F53D0D": {
+        "Hard": 9.5, // TUYU - Kakurenbocchi
+    },
+    "BDF85D5D575A992139EFF968A8348B3E6F03EEFE": {
+        "Hard": 8.2, // Desmeon - Hellcat
+    },
+    "2C01774FDB9C4BCC53DF1707ADE85CEA6F043477": {
+        "Hard": 8.1, // Sangatsu no Phantasia - Pastel Rain
+    },
+    "4E37C7070B9049EBBBF11CEAB644D4EC4A01CA13": {
+        "Expert": 11, // Marnik - Hocus Pocus
+    },
+    "5C870272E2159096D453F9420A8120980A5D4D29": {
+        "Expert": 8.5, // TWICE - LIKEY
+    },
+    "D7CB32F23041DEC272DE3DA0AC141DD8F91478CA": {
+        "Expert": 8.6, // Mariya Takeuchi - Shiawase No Monosashi
+    },
+    "070007FF180423AA0ABF3F2BA5584B0846788EE8": {
+        "Expert": 9.0	, // chelmico - Easy Breezy
+    },
+	
+	// standard acc
+	
+	"ED4F18F539BB6664066D9BAE360EF457AD7D1DC5": {
+        "Easy": 5.96, // Slax - Lunaticon
+    },
+    "E892864E9B4D708F0797C6F51B002F402A440DDE": {
+        "Easy": 6.62, // MYUKKE. - The 89's Momentum
+    },
+    "E6A52310E687425754D1A89F9BEDA315E60F3FA8": {
+        "Normal": 8.84, // Why Don't We - Fallin' (Adrenaline)
+    },
+    "FC1ED8BC2B8C65506E3C0825F890D36AB0390CD3": {
+        "Hard": 7.26, // kessoku band - Flashbacker
+    },
+    "F61E1F94E3B04879E8681DC706B021693EA6A295": {
+        "Normal": 8.07, // Glockenbach - Redlight
+    },
+    "CE17866C82F34A2300375BB7A06F55936707BBA9": {
+        "Normal": 8.78, // Charlie Cunningham - Minimum
+    },
+    "7145B6D7FD3E7635D3C85375706B33A7D303AC6C": {
+        "Normal": 6.63, // Facading - Don't Need You
+    },
+    "2ADE10DC0673B89D7268B91A79CD824040056B1A": {
+        "Hard": 6.66, // Cloudy June - FU In My Head
+    },
+    "97DF03B26D2384A6E6EC8409534A4A0E369E6DBA": {
+        "Hard": 5.6, // Bentham - Chicago
+		"Expert": 8.4, 
+    },
+    "97D8B24A2A3C3C95CB70CA1F57B5FFC73F7D8999": {
+        "Normal": 8.14, // Set It Off - Hourglass
+    },
+    "631282D23608F374640CA6FE4791AE4240BF10EC": {
+        "Normal": 7.44, // SYML - Where's My Love
+    },
+    "101DC1AD297D92136E9014013130435041471243": {
+        "Hard": 7.05, // bbno$ x BENEE x diamond pistols - help herself
+    },
+    "4355013AEC49FFEDF31D655A97E92C1F6F49ED98": {
+        "Normal": 7.8, // All Time Low - To Live and Let Go
+    },
+    "1B5BE17B1C212BFDD3ECE4AE7486A0C5B78111A4": {
+        "Hard": 7.67, // Girl Generation - Gee
+    },
+    "488E5834E47CD1D0FFFCF394AA29FAC8D1054EBF": {
+        "Normal": 7.92, // Vicetone - My Heart's on Fire
+    },
+    "AE53EF18989629B5A2EE4044E67E14BCC5B734E9": {
+        "Normal": 6.7, // Avicii - Levels
+    },
+    "3DD911FBE1F36F349FAF212464C63512065195B3": {
+        "Easy": 6.7, // Castion & Chester Young - Breathin'
+    },
+    "828CE7AFFE9A3759CE84A3413DE81A2947F32C96": {
+        "Normal": 5.54, // Avicii - Waiting For Love
+    },
+    "E4F684F9CC7EBAF9519FB22B9F8D82367FF6086F": {
+        "Hard": 6.96, // David Guetta & Bebe Rexha - I'm Good (Blue)
+    },
+    "0F856C63A6AB73351978DD1E3F34A100F2329492": {
+        "Hard": 6.93, // Glockenbach - Brooklyn
+    },
+    "98443293BFA2354B69C89F75238D2DAFAA9926B0": {
+        "Easy": 7.49, // Remzcore & S3RL - Forget the Real World
+    },
+    "85E6E6399059961AA0A3C0AEC508B8B1B58F6883": {
+        "Hard": 8.1, // Hozier - Take Me To Church
+    },
+    "727FAD7B449265E42CF49292E3FCE06629388633": {
+        "Hard": 6.93, // Calliope Mori x Hoshimachi Suisei - CapSule
+    },
+    "2E713F3A7EE4EC1FC9D0EB074427B06EC62AAB13": {
+        "Hard": 8.05, // Royal & the Serpent - overwhelmed (Chri$tian Gate$ remix)
+    },
+    "D572B37ED41CD423672A88E49472B6D9AD89E5DA": {
+        "Hard": 7.4, // Foals - 2001
+    },
+    "113EA9A78EC563FC134CA21C46584D0616A45326": {
+        "Easy": 6.7, // Kobaryo - SEITEN NO TERIYAKI NO DENSETSU
+    },
+    "6DABD7F32CF06AFF4BE7DA3646FE3DBFF157343B": {
+        "Easy": 5.48, // S3RL - You Are Mine
+    },
+    "CBDC3B21CD2CA1D1CFAFA6E7615A298D34D5D589": {
+        "Expert": 7.28, // Harry Styles - Late Night Talking
+    },
+    "C69A778BA485B93E35D8DA624EEBD65C9DDD063C": {
+        "Hard": 6.1, // Meiko - Leave The Lights On
+    },
+    "87EFECA37C255E63F8E1EC28C6ABD94A128631C0": {
+        "Hard": 7.8, // M2U - Trauma
+    },
+    "64688EE557A6C0916D2108AA3B39DD79C8468DB3": {
+        "Easy": 7.23, // "Raven" Fallen Angel "Gram" + Versus + "Holy Time" Seraph "Gram" - eden
+    },
+    "96DF0A1B8E2C80D52EA6A77005556A687BD027BB": {
+        "Normal": 5.08, // NceS - Burn
+    },
+    "69F898DDEB44117E3E824D9E6063C4BEA1ED8978": {
+        "Hard": 7.23, // Neck Deep - Serpents
+    },
+    "5BD84BC7198E5D1DE4D64D5926CAF31F46A8C2B1": {
+        "Normal": 7.79, // Dance Gavin Dance - Pop Off!
+    },
+    "4BBC5A36BB210C28E707370839C16593F6F40FA0": {
+        "Hard": 5.72, // Good Kid - Tell Me You Know
+    },
+    "F5D13248588FE65D366FAE99BB97CE1AAFC03272": {
+        "Hard": 7.95, // Raon - KUNEKUNE
+    },
+    "BA3EDDD4447985AAC531491C53D7E0F76FFF8603": {
+        "Normal": 7.74, // Srav3R - Multicolored
+    },
+    "1D2680EA564D7AB2393280ACC77FDCB24CA6AB1A": {
+        "Expert": 8.9, // Starset - INFECTED
+    },
+    "BCFCB9A89EDB7E2B3D48A7DA5034F897698799A7": {
+        "Hard": 9.6, // State Champs - All You Are Is History
+    },
+    "04C76A54C4649B04EE8A47B6C978BF30A6EFABDA": {
+        "Normal": 9, // Hideki Sakamoto - Lifelight
+    },
+    "8EA907EFEB4FB8774C1397076008B11491B937D0": {
+        "Hard": 8.3, // acloudyskye - A Drowning Cry
+    },
+    "2D2507A054CB9F59840B5829E08EA5456D5F2E2C": {
+        "Easy": 7.95, // DJ Genki - PanicPop*FESTIVAL!!!
+    },
+    "F62692AAA24B2EDD17B2126E364100E66D961E92": {
+        "Hard": 8.1, // Origami Angel - The Title Track
+    },
+    "3737559CDE04ED989DA247EC4254E04332A8B039": {
+        "Normal": 7.9, // I Prevail - Hurricane
+    },
+    "35B125930B0F475431AFCFF0362711D98CFEEAA6": {
+        "Hard": 7.2, // Mickey Valen - Wildcard
+    },
+    "D2691A9BFEABF796FE592F5C308CEB265F7F87AD": {
+        "Easy": 5.95, // PSYQUI - Illuyanka
+    },
+    "C9C2E4A3838D3D363D054D076B451DE4162FB8B9": {
+        "Normal": 8, // Icecore & Kou! - Powerful
+    },
+    "6AE7603F5BCF19D216DF10925C5CB603FA60EFFF": {
+        "Easy": 5.2, // Ruth B. - Dandelions
+    },
+    "64600295CA712BFA1E2CD9F005A9935717ED4A02": {
+        "Easy": 7, // glaive - dnd
+    },
+    "AE9CA369573C058CF6A6DCA70EA94F14F3BFACA1": {
+        "Easy": 6.7, // USAO - Big Daddy
+    },
+    "D4567C5E32D8EB66DBCCB169D5E2A267D340385A": {
+        "Normal": 8, // Kobaryo - FLUFFY FLASH
+    },
+    "C5BBFA106452D0D7DFBD4EEA26078F6282EE63F3": {
+        "Hard": 7.6, // K/DA - THE BADDEST
+    },
+    "2DC048E407309B8D7813BF294B2F5657F27E4831": {
+        "Hard": 9, // TUYU - Trapped in the Past
+    },
+    "782384118256B62F745C701A02CF067A90BC1C9D": {
+        "Hard": 8.1, // Kisma - Fly Again [NCS Release]
+    },
+    "D52E5A2E6612485E2256F9AA12C296E05621379C": {
+        "Normal": 9.6, // Srav3R vs Getty - DUAL BREAKER XX
+    },
+    "348C61BCF3FE2644298780D4186AAE5AB5A29D56": {
+        "Normal": 6.7, // Harry Styles - Golden
+    },
+    "48FA2B977C7A5196AE68D177005DC4EFFA11D904": {
+        "Hard": 7.2, // Gawr Gura - REFLECT
+    },
+    "D2F5EC696F6F893177F30E2EAB310931E5B14F1D": {
+        "Easy": 6.3, // Lil Nas X - SUN GOES DOWN
+    },
+    "47D574D2274C36B45A63A7B808BCF74B49A0A3BA": {
+        "Hard": 9, // glaive - astrid
+    },
+    "7ACE8EEE8E217A00A895AA7D12977CBC9AC0CDC5": {
+        "Easy": 8.1, // Laur - Viyella's Scream
+    },
+    "BA220888BB848D07BDFE3C49A4960E487C63BE82": {
+        "Normal": 8.6, // Camellia - SCREW // owo // SCREW
+    },
+    "02B85D98CF71AA913723503466FA3DEDABD15EF0": {
+        "Easy": 8.5, // Fvrwvrd - Heartbreak
+    },
+    "68C7D6431AF538F4FCE04709BFB3400BF270C2E0": {
+        "Normal": 7.6, // aran - Gate One
+    },
+    "94A64736F0FE349A2A2266C62652E3F9BD634EDE": {
+        "Easy": 8.1, // All Time Low - Sheets Were The States
+    },
+    "45F9480A43DDEA9FF338BF449AD9EAD62F73EB52": {
+        "Hard": 8.5, // Avicii - The Nights
+    },
+    "19AF73336A1C2FE788FF3DF0D93DB6E0BEAA0640": {
+        "Easy": 7.4, // INTERSECTION - Falling
+    },
+    "3BA27D62171488BEDAA2E0D88C4D5C99B18EFBD9": {
+        "Easy": 7, // All Time Low - Heroes
+    },
+    "ACBF9FF3733741789A37AFE3E6CF7C947E895148": {
+        "Easy": 9, // Kotone - Autonomy
+    },
+    "16B108E4C687497A8D410427946CE93ECD6F8693": {
+        "Normal": 7.2, // Galantis - Peanut Butter Jelly
+    },
+    "8AFC64D365FCF958D1B72BAB583B0367042D13EA": {
+        "Hard": 7.9, // Bruno Mars - That's What I Like
+    },
+    "92ACD063023BEAB160C32C303FD3A743FE4501B6": {
+        "Expert": 8.3, // At Face Value - Swim
+    },
+    "A30818F752CCE3C87664570826BBF7B12B848A30": {
+        "Hard": 7.6, // S3RL - Pika Girl
+    },
+    "8FD628B4F4A04B66BEF3CCE9BF7BA4F8A30984FC": {
+        "Hard": 8.5, // The Red Jumpsuit Apparatus - Face Down
+    },
+    "FD34B0279836820254C31552C5753291ACBCBB95": {
+        "Easy": 9.3, // USAO - Climax
+    },
+    "174866667BACBA128E54AD5CB58077A46456303B": {
+        "Normal": 8.7, // Pierce The Veil - Just the Way You Are
+    },
+    "5353F19BA50014EA2630648E724490F3ADAC283A": {
+        "Normal": 5.6, // Salem - Impatient
+    },
+    "77300A040E85107D5A745F2F9F2E5CED43205F4A": {
+        "Hard": 8.1, // Fox Stevenson - All Eyes On Me
+    },
+    "71FF5E91972C87304873A02276CE6A9D80691EE9": {
+        "Hard": 8.8, // NOMA - Brain Power
+    },
+    "83036B233F5429A85AEDB0CF1AE9C554498B50B6": {
+        "Easy": 6.7, // Memme - Avalanche
+    },
+    "5C870272E2159096D453F9420A8120980A5D4D29": {
+        "Normal": 6.7, // TWICE - LIKEY
+    },
+    "E935E19A32EF28C1540AF596B7846D19BA66BF9B": {
+        "Easy": 6.7, // Skrillex - Fuji Opener (Virtual Riot & Xomega Remix)
+    },
+    "0DFF062066E7FC61236CFD7C810F31CCA5B1FFCA": {
+        "Easy": 7, // Massive New Krew - Blaster
+    },
+    "E4EF275829F74BB9BC31E5933E82CB37F9AB441F": {
+        "Normal": 7, // Fox Stevenson - Comeback
+    },
+    "76ABA4DBDCA6C8BE81F71CC57C221F41FECE705A": {
+        "Hard": 6.7, // Sigma - Nobody To Love
+    },
+         
+         };
+         
+      </script>
+   </body>
+</html>
